@@ -5,26 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Tesorería - Cuadrilla de Negritos Niño Jesús de Paucarbambilla</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Google Fonts: Playfair Display para títulos solemnes y Inter para datos legibles -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 
-    <!-- Chosen Palette: Terciopelo Azul y Oro (Colores tradicionales de la danza en Huánuco) -->
-    
-    <!-- Application Structure Plan: 
-         1. Resumen Financiero: Un panel de control (Dashboard) con indicadores clave de rendimiento (KPIs) sobre el estado de la caja de la cuadrilla.
-         2. Gestión de la Hermandad: Una sección dedicada a los integrantes donde se generan links personalizados para el reporte de pagos.
-         3. Libro Contable: Estructura de tabla diseñada para visualizar aportes aprobados y gastos pendientes.
-         4. Interacciones: Generación dinámica de slugs para URLs y copiado rápido al portapapeles.
-         5. Justificación: Se elige un diseño "High-End" con bordes dorados para dignificar la labor de la cuadrilla y su devoción al Niño Jesús.
+    <!-- Chosen Palette: Ivory, Deep Velvet Blue and Andean Gold -->
+    <!-- Application Structure Plan:
+         1. Dashboard Holístico: Resumen de todos los "libros" o fuentes de ingreso.
+         2. Gestión de Compañeros: Mantenimiento de integrantes y sus links personales.
+         3. Registro Multicanal: El portal del integrante y el máster permiten elegir el origen del fondo (Cuota, Actividad, Donación, Auspicio).
+         4. Libro Diario Universal: Una tabla estilo "Excel" con filtros potentes por categoría para separar polladas de aportes extra.
+         5. State Management: Un array de 'ledger' que centraliza toda la contabilidad permitiendo cálculos dinámicos de balance.
     -->
-
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 
     <style>
         :root {
@@ -37,7 +29,8 @@
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: var(--color-ivory);
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2392400e' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-image: radial-gradient(#92400e 0.5px, transparent 0.5px);
+            background-size: 30px 30px;
         }
 
         .font-serif { font-family: 'Playfair Display', serif; }
@@ -47,389 +40,549 @@
             background: linear-gradient(90deg, #92400E 0%, #F59E0B 50%, #92400E 100%);
         }
 
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 320px;
+        .chart-container { position: relative; width: 100%; height: 280px; }
+
+        .nav-active {
+            background-color: white !important;
+            color: var(--color-velvet) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
         }
 
-        .btn-action {
-            background-color: var(--color-velvet);
-            transition: all 0.2s ease-in-out;
-        }
-        .btn-action:hover {
-            transform: scale(1.02);
-            filter: brightness(1.2);
-        }
+        .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .card-tradition {
-            background: white;
-            border: 1px solid #E5E7EB;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            position: relative;
-            overflow: hidden;
+        /* Estilo Hoja Contable */
+        .excel-table th { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; font-size: 0.7rem; }
+        .excel-table td { border: 1px solid #f1f5f9; padding: 0.75rem; }
+        
+        /* Scan IA Effect */
+        .scan-line {
+            width: 100%; height: 2px; background: var(--color-gold-light); position: absolute;
+            top: 0; left: 0; box-shadow: 0 0 15px var(--color-gold-light);
+            animation: scan 2s infinite linear; display: none;
         }
-        .card-tradition::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--color-gold-deep);
-        }
-
-        .link-container {
-            background: #F8FAFC;
-            border: 1px dashed #CBD5E1;
-            transition: border-color 0.3s;
-        }
-        .link-container:hover {
-            border-color: var(--color-gold-light);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
     </style>
 </head>
 <body class="text-slate-800">
 
-    <!-- Encabezado Institucional -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div class="gold-line"></div>
-        <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 bg-slate-900 rounded-xl flex items-center justify-center text-3xl shadow-lg border-2 border-amber-500">
-                    🎭
-                </div>
-                <div>
-                    <h1 class="font-serif text-xl font-black text-slate-900 leading-none">SISTEMA DE TESORERÍA</h1>
-                    <p class="text-[10px] font-bold text-amber-700 uppercase tracking-[0.3em] mt-1">Niño Jesús de Paucarbambilla</p>
-                </div>
-            </div>
-            
-            <nav class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                <button onclick="router('dashboard')" class="nav-btn px-4 py-2 text-xs font-black rounded-lg transition-all bg-white shadow-sm text-slate-900">DASHBOARD</button>
-                <button onclick="router('integrantes')" class="nav-btn px-4 py-2 text-xs font-black rounded-lg transition-all text-slate-500 hover:text-slate-900">INTEGRANTES</button>
-                <button onclick="router('contabilidad')" class="nav-btn px-4 py-2 text-xs font-black rounded-lg transition-all text-slate-500 hover:text-slate-900">CONTABILIDAD</button>
-            </nav>
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. Icons are Unicode characters. -->
 
-            <div class="flex items-center gap-3 border-l pl-4 border-slate-200">
-                <div class="text-right hidden lg:block">
-                    <p class="text-xs font-black text-slate-900">CAPORAL ADMIN</p>
-                    <p class="text-[9px] font-bold text-slate-400">Panel Maestro</p>
-                </div>
-                <div class="w-10 h-10 rounded-full bg-amber-100 border-2 border-amber-500 flex items-center justify-center text-lg">👑</div>
-            </div>
-        </div>
-    </header>
-
-    <main class="max-w-7xl mx-auto p-6 space-y-8 pb-20">
-
-        <!-- SECCIÓN INTRODUCTORIA -->
-        <section class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
-            <div class="absolute -right-20 -top-20 text-[200px] opacity-[0.03] select-none font-serif">N</div>
-            <div class="relative z-10">
-                <span class="bg-amber-100 text-amber-800 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Control Centralizado</span>
-                <h2 class="font-serif text-4xl font-black text-slate-900 mt-4 mb-4">Gestión de la Cuadrilla</h2>
-                <p class="text-slate-600 max-w-3xl leading-relaxed text-sm md:text-base">
-                    Bienvenido al portal maestro de la <strong>Cuadrilla de Negritos Niño Jesús de Paucarbambilla</strong>. 
-                    Este sistema permite una administración transparente de los fondos destinados a la festividad. 
-                    Desde aquí podrá supervisar los aportes de cada hermano integrante y distribuir los gastos de orquesta, vestimenta y cultos.
-                </p>
-            </div>
-        </section>
-
-        <!-- VISTA: DASHBOARD -->
-        <div id="view-dashboard" class="view-content animate-fade space-y-8">
-            <!-- KPIs Financieros -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="card-tradition p-6 rounded-2xl">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Caja Total</p>
-                    <h3 class="text-2xl font-black text-slate-900 mt-1">S/. 18,420.50</h3>
-                    <div class="flex items-center gap-1 text-emerald-600 text-[10px] font-bold mt-2">
-                        <span>↑</span> 8.5% este mes
+    <!-- VISTA MAESTRA (ADMIN) -->
+    <div id="wrapper-master">
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+            <div class="gold-line"></div>
+            <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 bg-slate-900 rounded-xl flex items-center justify-center text-3xl border-2 border-amber-500 shadow-xl">🎭</div>
+                    <div>
+                        <h1 class="font-serif text-xl font-black text-slate-900 leading-none uppercase">Tesorería Central</h1>
+                        <p class="text-[10px] font-bold text-amber-700 uppercase tracking-[0.3em] mt-1">Niño Jesús de Paucarbambilla</p>
                     </div>
                 </div>
-                <div class="card-tradition p-6 rounded-2xl">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cuotas Pendientes</p>
-                    <h3 class="text-2xl font-black text-amber-700 mt-1">S/. 3,150.00</h3>
-                    <p class="text-[10px] text-slate-400 font-medium mt-2">12 hermanos por regularizar</p>
+                
+                <nav id="main-nav" class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                    <button onclick="router('dashboard', this)" class="nav-btn px-4 py-2 text-xs font-black rounded-lg transition-all nav-active">RESUMEN</button>
+                    <button onclick="router('integrantes', this)" class="nav-btn px-4 py-2 text-xs font-black rounded-lg transition-all text-slate-500">COMPAÑEROS</button>
+                    <button onclick="router('contabilidad', this)" class="nav-btn px-4 py-2 text-xs font-black rounded-lg transition-all text-slate-500">LIBRO DIARIO</button>
+                </nav>
+
+                <div class="flex items-center gap-3 border-l pl-4 border-slate-200">
+                    <button onclick="location.reload()" class="text-[10px] font-black bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-black transition">CERRAR</button>
                 </div>
-                <div class="card-tradition p-6 rounded-2xl">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gastos de Orquesta</p>
-                    <h3 class="text-2xl font-black text-slate-900 mt-1">S/. 5,000.00</h3>
-                    <p class="text-[10px] text-rose-600 font-bold mt-2">Liquidación pendiente</p>
-                </div>
-                <div class="card-tradition p-6 rounded-2xl">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Devotos Registrados</p>
-                    <h3 class="text-2xl font-black text-slate-900 mt-1">45 Miembros</h3>
-                    <p class="text-[10px] text-slate-400 font-medium mt-2">Cuadrilla completa</p>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto p-6 space-y-8 pb-20">
+            <!-- DASHBOARD -->
+            <div id="view-dashboard" class="view-content animate-fade space-y-8">
+                <section class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-l-slate-900">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h2 class="font-serif text-3xl font-black text-slate-900">Balance Maestro</h2>
+                            <p class="text-slate-500 text-sm mt-1">Consolidado de todas las fuentes de ingreso y egreso.</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Saldo Actual Aprobado</p>
+                            <h3 id="kpi-balance" class="text-4xl font-black text-slate-900">S/. 0.00</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <p class="text-[9px] font-black text-slate-400 uppercase">Integrantes</p>
+                            <h4 id="kpi-members" class="text-xl font-bold text-slate-800">--</h4>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <p class="text-[9px] font-black text-slate-400 uppercase">Por Validar</p>
+                            <h4 id="kpi-pending" class="text-xl font-bold text-amber-600">S/. 0.00</h4>
+                        </div>
+                        <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                            <p class="text-[9px] font-black text-emerald-700 uppercase">Ingresos Totales</p>
+                            <h4 id="kpi-incomes" class="text-xl font-bold text-emerald-700">S/. 0.00</h4>
+                        </div>
+                        <div class="bg-rose-50 p-4 rounded-xl border border-rose-100">
+                            <p class="text-[9px] font-black text-rose-700 uppercase">Egresos Totales</p>
+                            <h4 id="kpi-expenses" class="text-xl font-bold text-rose-700">S/. 0.00</h4>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 class="font-serif text-lg font-bold mb-6">Comparativa por Tipo de Ingreso</h4>
+                        <div class="chart-container"><canvas id="barChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 class="font-serif text-lg font-bold mb-6">Distribución de Fondos</h4>
+                        <div class="chart-container"><canvas id="donutChart"></canvas></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Gráficos de Análisis -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Gráfico de Barras -->
-                <div class="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-6">
-                        <h4 class="font-serif text-xl font-bold">Historial de Aportes vs Gastos</h4>
-                        <select class="text-xs font-bold border-none bg-slate-50 rounded-lg p-2 outline-none">
-                            <option>Periodo 2023-2024</option>
+            <!-- INTEGRANTES -->
+            <div id="view-integrantes" class="view-content hidden animate-fade space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h2 class="font-serif text-3xl font-black text-slate-900">Compañeros Integrantes</h2>
+                        <p class="text-slate-500 text-sm">Registro de la cuadrilla y gestión de acceso a pagos.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="toggleModal('modal-nuevo', true)" class="bg-slate-900 text-white px-5 py-3 rounded-xl font-bold text-xs hover:bg-black transition shadow-lg">➕ AGREGAR COMPAÑERO</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b">
+                            <tr>
+                                <th class="px-8 py-5">Compañero</th>
+                                <th class="px-8 py-5">Enlace de Pago</th>
+                                <th class="px-8 py-5 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="memberTable" class="divide-y divide-slate-100">
+                            <!-- JS Dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- LIBRO DIARIO (MULTI-HOJA) -->
+            <div id="view-contabilidad" class="view-content hidden animate-fade space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+                    <div>
+                        <h2 class="font-serif text-3xl font-black text-slate-900">Libro Contable Maestro</h2>
+                        <p class="text-slate-500 text-sm italic">Consolidado universal de movimientos.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <select id="filter-ledger" onchange="renderLedger()" class="bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                            <option value="todos">Todas las Hojas</option>
+                            <option value="compañero">Aportes Compañeros</option>
+                            <option value="actividad">Actividades (Polladas/Fiestas)</option>
+                            <option value="donacion">Aportes Extra (Donantes)</option>
+                            <option value="auspicio">Auspiciadores</option>
+                            <option value="egreso">Egresos / Gastos</option>
                         </select>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="barChart"></canvas>
+                        <button onclick="toggleModal('modal-egreso', true)" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-xs font-black hover:bg-rose-700 transition">➖ REGISTRAR GASTO</button>
                     </div>
                 </div>
-                <!-- Gráfico de Dona -->
-                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-                    <h4 class="font-serif text-xl font-bold mb-6">Distribución de Fondos</h4>
-                    <div class="flex-1 flex items-center justify-center">
-                        <canvas id="donutChart"></canvas>
+                
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left excel-table">
+                            <thead>
+                                <tr class="uppercase tracking-widest">
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Origen / Libro</th>
+                                    <th class="px-6 py-4">Descripción / Compañero</th>
+                                    <th class="px-6 py-4">Monto</th>
+                                    <th class="px-6 py-4 text-center">Estado</th>
+                                    <th class="px-6 py-4 text-center">Gestión</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledger-body" class="text-sm">
+                                <!-- JS Dinámico -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="mt-6 space-y-2">
-                        <div class="flex justify-between text-xs font-bold">
-                            <span class="text-slate-400">Música y Banda</span>
-                            <span>45%</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- VISTA DEL PORTAL INTEGRANTE -->
+    <div id="wrapper-member" class="hidden min-h-screen bg-slate-50 pb-20">
+        <header class="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🎭</span>
+                <span class="font-serif font-black text-slate-800 uppercase tracking-tight">Portal del Compañero</span>
+            </div>
+            <button onclick="exitMemberView()" class="text-[10px] font-black bg-slate-800 text-white px-4 py-2 rounded-lg">REGRESAR AL MÁSTER</button>
+        </header>
+
+        <main class="max-w-4xl mx-auto p-6 space-y-8 animate-fade">
+            <div class="bg-white p-10 rounded-3xl border border-slate-200 shadow-xl border-t-8 border-t-amber-600 text-center relative overflow-hidden">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bienvenido a la Tesorería</p>
+                <h2 id="member-portal-name" class="font-serif text-4xl font-black text-slate-900 mt-2 tracking-tight">--</h2>
+                <div id="member-portal-role" class="text-xs font-bold text-amber-600 mt-2 uppercase tracking-widest">--</div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Paso 1 -->
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-black text-xs uppercase text-slate-400 tracking-widest">1. Subir Váucher o Ticket</h3>
+                    <div class="relative border-2 border-dashed border-slate-200 rounded-2xl p-14 text-center cursor-pointer hover:border-amber-500 transition-all overflow-hidden group" onclick="simulateFileUpload()">
+                        <div id="scan-line" class="scan-line"></div>
+                        <div id="upload-content">
+                            <span class="text-6xl block mb-4 group-hover:scale-110 transition-transform">📸</span>
+                            <p class="text-xs font-bold text-slate-600">Click para adjuntar imagen</p>
                         </div>
-                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <div class="bg-blue-900 h-full w-[45%]"></div>
+                        <div id="upload-preview" class="hidden">
+                            <div class="w-full h-40 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-400 text-xs uppercase border border-slate-200">Váucher Cargado</div>
+                            <p class="text-[10px] font-bold text-emerald-600 mt-3 italic animate-pulse">Imagen detectada correctamente</p>
                         </div>
+                    </div>
+                    <button id="btn-ia" disabled onclick="simulateOCR()" class="w-full py-4 bg-amber-50 text-amber-700 rounded-2xl font-black text-xs flex items-center justify-center gap-2 disabled:opacity-50">
+                        🤖 LECTURA INTELIGENTE (IA)
+                    </button>
+                </div>
+
+                <!-- Paso 2 -->
+                <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-black text-xs uppercase text-slate-400 tracking-widest">2. Clasificación del Aporte</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 ml-2 uppercase">Tipo de Aporte</label>
+                            <select id="mem-type" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-black outline-none focus:ring-2 focus:ring-amber-500">
+                                <option value="compañero">Mi Cuota Mensual</option>
+                                <option value="actividad">Venta Actividad (Pollada/Parrillada)</option>
+                                <option value="donacion">Aporte de Amigo / Tercero</option>
+                                <option value="auspicio">Auspicio de Empresa</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-[9px] font-black text-slate-400 ml-2 uppercase">Monto S/.</label>
+                                <input type="number" id="mem-amount" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-black focus:ring-2 focus:ring-amber-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-black text-slate-400 ml-2 uppercase">Fecha</label>
+                                <input type="date" id="mem-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 ml-2 uppercase">Descripción / Glosa</label>
+                            <input type="text" id="mem-ref" placeholder="Ej: Pago Pollada 10 tickets o Donación Sr. Rojas" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold focus:ring-2 focus:ring-amber-500 outline-none">
+                        </div>
+                        <button onclick="submitVoucher()" class="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-black transition shadow-xl mt-4">ENVIAR A REVISIÓN DE TESORERÍA</button>
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
+    </div>
 
-        <!-- VISTA: INTEGRANTES -->
-        <div id="view-integrantes" class="view-content hidden animate-fade space-y-6">
-            <div class="flex flex-col md:flex-row justify-between items-end gap-4">
-                <div>
-                    <h3 class="font-serif text-3xl font-black">Registro de la Hermandad</h3>
-                    <p class="text-slate-500 text-sm font-medium italic">Gestión de enlaces únicos para el reporte de váuchers.</p>
-                </div>
-                <button onclick="toggleModal('modal-nuevo')" class="btn-action text-white px-6 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center gap-2">
-                    <span>➕</span> REGISTRAR NUEVO NEGRITO
-                </button>
-            </div>
-
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b">
-                        <tr>
-                            <th class="px-8 py-5">Hermano / Puesto</th>
-                            <th class="px-8 py-5">Deuda Acumulada</th>
-                            <th class="px-8 py-5">Enlace Personal de Pago</th>
-                            <th class="px-8 py-5 text-center">Gestión</th>
-                        </tr>
-                    </thead>
-                    <tbody id="memberTable" class="divide-y divide-slate-100">
-                        <!-- JS Dinámico -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- VISTA: CONTABILIDAD -->
-        <div id="view-contabilidad" class="view-content hidden animate-fade">
-            <div class="bg-white p-20 text-center rounded-3xl border-2 border-dashed border-slate-200">
-                <div class="text-6xl mb-4">📓</div>
-                <h3 class="font-serif text-2xl font-bold text-slate-400">Libro Contable Maestro</h3>
-                <p class="text-slate-400 text-sm mt-2">Sección en mantenimiento. Consulte el Dashboard para ver el saldo en tiempo real.</p>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- MODAL: REGISTRO DE INTEGRANTE -->
+    <!-- MODALES -->
+    <!-- Modal Nuevo Integrante -->
     <div id="modal-nuevo" class="fixed inset-0 bg-slate-900/60 hidden z-[60] flex items-center justify-center p-6 backdrop-blur-sm">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border-t-[10px] border-amber-600 space-y-6">
-            <div class="text-center">
-                <h3 class="font-serif text-2xl font-black text-slate-900">Nuevo Integrante</h3>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inscripción en la Tesorería</p>
-            </div>
-            
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border-t-[10px] border-amber-600 animate-fade">
+            <h3 class="font-serif text-2xl font-black text-center mb-6">Nuevo Compañero</h3>
             <div class="space-y-4">
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre y Apellidos</label>
-                    <input type="text" id="inp-nombre" placeholder="Ej: Pedro Valdivia" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-amber-500">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Cargo / Puesto</label>
-                    <select id="inp-cargo" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold appearance-none">
-                        <option>Negrito Guía</option>
-                        <option>Trasguía</option>
-                        <option>Negrito Pampa</option>
-                        <option>Abanderado</option>
-                        <option>Coro / Músico</option>
-                    </select>
-                </div>
+                <input type="text" id="inp-nombre" placeholder="Nombre completo..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold outline-none">
+                <select id="inp-cargo" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold appearance-none outline-none">
+                    <option>Negrito Guía</option><option>Trasguía</option><option>Negrito Pampa</option><option>Abanderado</option>
+                </select>
             </div>
-
-            <div class="flex gap-3 pt-4">
-                <button onclick="toggleModal('modal-nuevo')" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] hover:bg-slate-200 transition">CANCELAR</button>
-                <button onclick="addMember()" class="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] shadow-xl hover:bg-black transition">GUARDAR Y GENERAR LINK</button>
+            <div class="flex gap-3 mt-8">
+                <button onclick="toggleModal('modal-nuevo', false)" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase">Cancelar</button>
+                <button onclick="addMember()" class="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] shadow-xl uppercase">Registrar</button>
             </div>
         </div>
     </div>
 
-    <!-- Scripting Core -->
+    <!-- Modal Nuevo Gasto -->
+    <div id="modal-egreso" class="fixed inset-0 bg-slate-900/60 hidden z-[60] flex items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border-t-[10px] border-rose-600 animate-fade">
+            <h3 class="font-serif text-2xl font-black text-center mb-6 text-rose-800">Registrar Gasto</h3>
+            <div class="space-y-4">
+                <input type="text" id="exp-desc" placeholder="¿En qué se gastó? (Ej: Pago a la Banda)" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold outline-none">
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" id="exp-amount" placeholder="Monto S/." class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-black outline-none">
+                    <input type="date" id="exp-date" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold outline-none">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="toggleModal('modal-egreso', false)" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase">Cancelar</button>
+                <button onclick="addExpense()" class="flex-[2] py-4 bg-rose-600 text-white rounded-2xl font-black text-[10px] shadow-xl uppercase">Guardar Gasto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE LA APLICACIÓN -->
     <script>
-        // --- ESTADO DE LA APLICACIÓN ---
+        // --- BASE DE DATOS LOCAL ---
         let members = [
-            { id: 1, name: 'Juan Alberto Ramírez', role: 'Negrito Guía', debt: 150.00, slug: 'juan-ramirez-pauc' },
-            { id: 2, name: 'Marcos Espinoza', role: 'Trasguía', debt: 0.00, slug: 'marcos-espinoza-pauc' },
-            { id: 3, name: 'Luis Ángel Torres', role: 'Abanderado', debt: 75.50, slug: 'luis-torres-pauc' }
+            { id: 1, name: 'Raúl Espinoza', role: 'Negrito Guía', slug: 'raul-espinoza-pauc' },
+            { id: 2, name: 'Humberto Rojas', role: 'Trasguía', slug: 'humberto-rojas-pauc' }
         ];
 
+        let ledger = [
+            { id: 101, date: '2024-02-01', name: 'Mantenimiento Trajes', ref: 'Limpieza de plumas', amount: 250.00, status: 'aprobado', type: 'egreso', book: 'egreso' },
+            { id: 102, date: '2024-02-05', name: 'Auspicio BCP', ref: 'Publicidad en Programa', amount: 500.00, status: 'aprobado', type: 'ingreso', book: 'auspicio' }
+        ];
+
+        let currentActiveMember = null;
         let activeCharts = {};
 
-        // --- ENRUTADOR ---
-        function router(viewId) {
+        // --- NAVEGACIÓN ---
+        function router(viewId, btnEl) {
             document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
-            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            const view = document.getElementById(`view-${viewId}`);
+            if (view) view.classList.remove('hidden');
+
+            if (btnEl) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('nav-active'));
+                btnEl.classList.add('nav-active');
+            }
+
+            if (viewId === 'dashboard') updateDashboard();
+            if (viewId === 'integrantes') renderMembers();
+            if (viewId === 'contabilidad') renderLedger();
+        }
+
+        // --- DASHBOARD DINÁMICO ---
+        function updateDashboard() {
+            const approvedMovements = ledger.filter(m => m.status === 'aprobado');
             
-            // Estilo de botones
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('bg-white', 'shadow-sm', 'text-slate-900');
-                b.classList.add('text-slate-500');
-            });
-            event.target.classList.add('bg-white', 'shadow-sm', 'text-slate-900');
-            event.target.classList.remove('text-slate-500');
+            const totalIncomes = approvedMovements.filter(m => m.type === 'ingreso').reduce((s, m) => s + m.amount, 0);
+            const totalExpenses = approvedMovements.filter(m => m.type === 'egreso').reduce((s, m) => s + m.amount, 0);
+            const balance = totalIncomes - totalExpenses;
 
-            if(viewId === 'dashboard') initCharts();
-            if(viewId === 'integrantes') renderMembers();
+            const pendingAmount = ledger.filter(m => m.status === 'pendiente').reduce((s, m) => s + m.amount, 0);
+
+            document.getElementById('kpi-balance').innerText = `S/. ${balance.toFixed(2)}`;
+            document.getElementById('kpi-pending').innerText = `S/. ${pendingAmount.toFixed(2)}`;
+            document.getElementById('kpi-incomes').innerText = `S/. ${totalIncomes.toFixed(2)}`;
+            document.getElementById('kpi-expenses').innerText = `S/. ${totalExpenses.toFixed(2)}`;
+            document.getElementById('kpi-members').innerText = `${members.length} Compañeros`;
+
+            // Preparar datos para gráficos
+            const groups = { compañero: 0, actividad: 0, donacion: 0, auspicio: 0 };
+            approvedMovements.forEach(m => { if(m.type === 'ingreso') groups[m.book] += m.amount; });
+
+            initCharts(groups, totalIncomes, totalExpenses);
         }
 
-        // --- GRÁFICOS (Chart.js) ---
-        function initCharts() {
-            if(activeCharts.bar) activeCharts.bar.destroy();
-            if(activeCharts.donut) activeCharts.donut.destroy();
-
-            const ctxBar = document.getElementById('barChart').getContext('2d');
-            activeCharts.bar = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: ['Set', 'Oct', 'Nov', 'Dic', 'Ene'],
-                    datasets: [
-                        { label: 'Ingresos (S/.)', data: [4500, 6200, 5800, 8900, 12000], backgroundColor: '#0F172A', borderRadius: 10 },
-                        { label: 'Egresos (S/.)', data: [2100, 3000, 4200, 9500, 5000], backgroundColor: '#D97706', borderRadius: 10 }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { font: { weight: '800', size: 10 } } } },
-                    scales: { x: { grid: { display: false } }, y: { grid: { borderDash: [5,5] } } }
-                }
-            });
-
-            const ctxDonut = document.getElementById('donutChart').getContext('2d');
-            activeCharts.donut = new Chart(ctxDonut, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Música', 'Comida', 'Trajes', 'Otros'],
-                    datasets: [{
-                        data: [45, 25, 20, 10],
-                        backgroundColor: ['#0F172A', '#D97706', '#94A3B8', '#E2E8F0'],
-                        borderWidth: 0,
-                        hoverOffset: 15
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '75%',
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-
-        // --- GESTIÓN DE MIEMBROS ---
+        // --- RENDERIZADO ---
         function renderMembers() {
             const table = document.getElementById('memberTable');
             table.innerHTML = '';
-
             members.forEach(m => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50/50 transition-colors";
-                
-                const fullUrl = `https://tesoreria-paucarbambilla.app/pago/${m.slug}`;
-
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-50";
                 tr.innerHTML = `
                     <td class="px-8 py-6">
-                        <p class="font-black text-slate-800 text-sm">${m.name}</p>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${m.role}</p>
+                        <p class="font-black text-slate-800 text-sm tracking-tight">${m.name}</p>
+                        <p class="text-[10px] font-bold text-amber-600 uppercase tracking-tighter">${m.role}</p>
                     </td>
                     <td class="px-8 py-6">
-                        <span class="font-black text-sm ${m.debt > 0 ? 'text-rose-600' : 'text-emerald-600'}">
-                            S/. ${m.debt.toFixed(2)}
-                        </span>
-                    </td>
-                    <td class="px-8 py-6">
-                        <div class="link-container flex items-center justify-between gap-3 p-3 rounded-xl">
-                            <span class="text-[10px] font-mono text-slate-400 truncate w-40">${fullUrl}</span>
-                            <button onclick="copyLink('${fullUrl}')" class="text-[10px] font-black bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-amber-50 active:scale-95 transition">COPIAR LINK</button>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded">paucarbambilla.app/${m.slug}</span>
+                            <button onclick="copyToClipboard('${m.slug}')" class="text-[8px] bg-slate-900 text-white px-3 py-1 rounded hover:bg-black transition font-black uppercase">Copiar</button>
                         </div>
                     </td>
                     <td class="px-8 py-6 text-center">
-                        <button class="text-slate-300 hover:text-rose-600 transition" title="Dar de baja">🗑️</button>
+                        <button onclick="enterMemberView(${m.id})" class="text-[9px] font-black bg-amber-50 text-amber-700 px-4 py-2 rounded-lg border border-amber-200 hover:bg-amber-600 hover:text-white transition uppercase">Abonar / Actividad</button>
                     </td>
                 `;
                 table.appendChild(tr);
             });
         }
 
-        function copyLink(url) {
-            // Simulación de copiado
-            const btn = event.target;
-            const original = btn.innerText;
-            btn.innerText = '¡COPIADO!';
-            btn.classList.add('text-amber-700');
-            
-            setTimeout(() => {
-                btn.innerText = original;
-                btn.classList.remove('text-amber-700');
-            }, 2000);
+        function renderLedger() {
+            const body = document.getElementById('ledger-body');
+            const filter = document.getElementById('filter-ledger').value;
+            body.innerHTML = '';
+
+            const filteredLedger = filter === 'todos' ? ledger : ledger.filter(l => l.book === filter);
+
+            filteredLedger.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
+                const tr = document.createElement('tr');
+                const isPending = m.status === 'pendiente';
+                
+                const bookLabel = {
+                    compañero: '👤 Compañero',
+                    actividad: '🍗 Actividad',
+                    donacion: '💝 Extra/Amigo',
+                    auspicio: '🏢 Auspicio',
+                    egreso: '📉 Gasto'
+                };
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-mono text-xs text-slate-400">${m.date}</td>
+                    <td class="px-6 py-4"><span class="text-[10px] font-black uppercase text-slate-500">${bookLabel[m.book]}</span></td>
+                    <td class="px-6 py-4">
+                        <p class="font-bold text-slate-700">${m.name}</p>
+                        <p class="text-[10px] text-slate-400 truncate max-w-xs">${m.ref}</p>
+                    </td>
+                    <td class="px-6 py-4 font-black ${m.type === 'ingreso' ? 'text-emerald-600' : 'text-rose-600'}">S/. ${m.amount.toFixed(2)}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 rounded-lg text-[9px] font-black uppercase ${isPending ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'}">
+                            ${m.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        ${isPending ? `<button onclick="approveLedger(${m.id})" class="text-[9px] bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-black hover:bg-emerald-700 transition shadow-sm">VALIDAR</button>` : '<span class="text-slate-300">✅</span>'}
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
         }
 
-        // --- LÓGICA DE MODALES ---
-        function toggleModal(id) {
-            const m = document.getElementById(id);
-            m.classList.toggle('hidden');
+        // --- LÓGICA DE NEGOCIO ---
+        function approveLedger(id) {
+            const entry = ledger.find(l => l.id === id);
+            if (entry) {
+                entry.status = 'aprobado';
+                renderLedger();
+                updateDashboard();
+            }
         }
 
         function addMember() {
             const name = document.getElementById('inp-nombre').value;
-            const role = document.getElementById('inp-cargo').value;
-
-            if(!name) return alert("Ingrese el nombre del hermano.");
-
-            const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-') + '-' + Math.floor(Math.random() * 1000);
-
-            members.push({
-                id: Date.now(),
-                name,
-                role,
-                debt: 0.00,
-                slug
-            });
-
-            toggleModal('modal-nuevo');
+            const cargo = document.getElementById('inp-cargo').value;
+            if (!name) return alert("Ingrese el nombre del compañero");
+            const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-') + '-' + Math.floor(Math.random() * 999);
+            members.push({ id: Date.now(), name, role: cargo, slug });
+            toggleModal('modal-nuevo', false);
             renderMembers();
-            
-            // Limpiar
-            document.getElementById('inp-nombre').value = '';
         }
 
-        // --- INICIO ---
-        window.onload = () => {
-            initCharts();
-        };
+        function addExpense() {
+            const desc = document.getElementById('exp-desc').value;
+            const amount = parseFloat(document.getElementById('exp-amount').value);
+            const date = document.getElementById('exp-date').value || new Date().toISOString().split('T')[0];
 
+            if (!desc || !amount) return alert("Complete los datos del gasto");
+
+            ledger.push({
+                id: Date.now(),
+                date: date,
+                name: desc,
+                ref: 'Gasto registrado por administración',
+                amount: amount,
+                status: 'aprobado',
+                type: 'egreso',
+                book: 'egreso'
+            });
+
+            toggleModal('modal-egreso', false);
+            updateDashboard();
+            renderLedger();
+        }
+
+        function submitVoucher() {
+            const amount = parseFloat(document.getElementById('mem-amount').value);
+            const bookType = document.getElementById('mem-type').value;
+            if (!amount) return alert("Ingrese el monto del abono");
+            
+            ledger.push({
+                id: Date.now(),
+                date: document.getElementById('mem-date').value || new Date().toISOString().split('T')[0],
+                name: currentActiveMember.name,
+                ref: document.getElementById('mem-ref').value || `Aporte vía portal`,
+                amount: amount,
+                status: 'pendiente',
+                type: 'ingreso',
+                book: bookType
+            });
+
+            alert(`Gracias ${currentActiveMember.name}. Reporte enviado satisfactoriamente.`);
+            exitMemberView();
+        }
+
+        // --- SIMULACIÓN DE PORTAL ---
+        function enterMemberView(id) {
+            currentActiveMember = members.find(m => m.id === id);
+            document.getElementById('wrapper-master').classList.add('hidden');
+            document.getElementById('wrapper-member').classList.remove('hidden');
+            document.getElementById('member-portal-name').innerText = currentActiveMember.name;
+            document.getElementById('member-portal-role').innerText = currentActiveMember.role;
+        }
+
+        function exitMemberView() {
+            document.getElementById('wrapper-master').classList.remove('hidden');
+            document.getElementById('wrapper-member').classList.add('hidden');
+            router('dashboard');
+        }
+
+        function simulateFileUpload() {
+            document.getElementById('upload-content').classList.add('hidden');
+            document.getElementById('upload-preview').classList.remove('hidden');
+            document.getElementById('btn-ia').disabled = false;
+        }
+
+        function simulateOCR() {
+            document.getElementById('scan-line').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('scan-line').style.display = 'none';
+                document.getElementById('mem-amount').value = 100.00;
+                document.getElementById('mem-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('mem-ref').value = "TRANSFERENCIA BCP - OPERACIÓN 122";
+            }, 1500);
+        }
+
+        // --- UTILIDADES ---
+        function toggleModal(id, show) { document.getElementById(id).classList.toggle('hidden', !show); }
+        function copyToClipboard(slug) { alert("Link personal generado: paucarbambilla.app/" + slug); }
+
+        function initCharts(groups, ingresos, egresos) {
+            if (activeCharts.bar) activeCharts.bar.destroy();
+            if (activeCharts.donut) activeCharts.donut.destroy();
+
+            // Gráfico de Barras por Tipo de Ingreso
+            activeCharts.bar = new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Compañeros', 'Actividades', 'Aportes Extra', 'Auspicios'],
+                    datasets: [{
+                        label: 'Ingresos Acumulados S/.',
+                        data: [groups.compañero, groups.actividad, groups.donacion, groups.auspicio],
+                        backgroundColor: '#0F172A',
+                        borderRadius: 8
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, grid: { borderDash: [5,5] } }, x: { grid: { display: false } } }
+                }
+            });
+
+            // Gráfico de Dona: Balance
+            activeCharts.donut = new Chart(document.getElementById('donutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ingresos Totales', 'Gastos Totales'],
+                    datasets: [{
+                        data: [ingresos, egresos],
+                        backgroundColor: ['#10b981', '#f43f5e'],
+                        borderWidth: 0,
+                        hoverOffset: 15
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '75%',
+                    plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' } } } }
+                }
+            });
+        }
+
+        // Inicio por defecto
+        window.onload = () => router('dashboard');
     </script>
 </body>
 </html>
