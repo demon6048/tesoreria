@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Tesorería Cofradía - Panel Maestro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts: Inter for clean UI -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Chosen Palette: Slate (Backgrounds) + Indigo (Primary) + Emerald/Rose (Status) -->
+    <!-- Application Structure Plan:
+         1. Sidebar Navigation: Persistent access to Dashboard, Ledger, and Approvals.
+         2. Dashboard View: High-level KPI cards + Interactive Charts (Income vs Expense, Categories).
+            - Goal: Immediate visual understanding of financial health.
+         3. Ledger View (Movimientos): Detailed table with search/filter.
+            - Goal: Audit trail exploration.
+         4. Approval View (Validación): Task-oriented interface to process pending expenses.
+            - Goal: Demonstrate the 'Control' aspect of the source report.
+         5. Logic: Vanilla JS state management simulating the Firebase database.
+    -->
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; }
+        
+        /* Chart Container Styling as per requirements */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* max-w-2xl equivalent logic */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Unicode Icon helper */
+        .icon { font-style: normal; font-weight: normal; font-variant: normal; text-transform: none; line-height: 1; }
+    </style>
+</head>
+<body class="text-slate-700 h-screen flex overflow-hidden">
+
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. Icons are Unicode. -->
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-col hidden md:flex z-10 shadow-sm">
+        <div class="p-6 border-b border-slate-100">
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                <span class="text-2xl">🏛️</span> Cofradía
+            </h1>
+            <p class="text-xs font-semibold text-indigo-600 uppercase tracking-widest mt-1">Panel Maestro</p>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="router('dashboard')" id="nav-dashboard" class="nav-item w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-all bg-indigo-50 text-indigo-700 font-semibold">
+                <span>📊</span> Resumen General
+            </button>
+            <button onclick="router('movements')" id="nav-movements" class="nav-item w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                <span>📑</span> Libro Diario
+            </button>
+            <button onclick="router('approvals')" id="nav-approvals" class="nav-item w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+                <span class="relative">
+                    ⚖️
+                    <span id="badge-pending" class="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full hidden">0</span>
+                </span> 
+                Validación
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100 bg-slate-50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">M</div>
+                <div>
+                    <p class="text-sm font-bold text-slate-800">Usuario Máster</p>
+                    <p class="text-xs text-slate-500">Administrador</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto relative">
+        <!-- Mobile Header -->
+        <header class="md:hidden bg-white border-b border-slate-200 p-4 flex justify-between items-center sticky top-0 z-20">
+            <span class="font-bold text-lg">🏛️ Tesorería</span>
+            <div class="flex gap-4">
+                <button onclick="router('dashboard')" class="text-xl">📊</button>
+                <button onclick="router('approvals')" class="text-xl relative">
+                    ⚖️
+                    <div id="badge-pending-mobile" class="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full hidden"></div>
+                </button>
+            </div>
+        </header>
+
+        <div class="max-w-7xl mx-auto p-4 md:p-8 pb-20">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="view-section animate-fade">
+                <div class="mb-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Estado de Cuentas</h2>
+                    <p class="text-slate-500 mt-2 max-w-3xl">
+                        Bienvenido al sistema integral. Este panel refleja el saldo real considerando únicamente los movimientos consolidados y aprobados.
+                        <span class="block mt-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded w-fit border border-blue-100">
+                            ℹ️ Nota: Los gastos pendientes de validación no se descuentan del saldo hasta su aprobación.
+                        </span>
+                    </p>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Balance Card -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity text-6xl select-none">💰</div>
+                        <p class="text-xs font-bold uppercase text-slate-400 tracking-wider">Saldo Disponible</p>
+                        <h3 id="kpi-balance" class="text-3xl font-black text-slate-800 mt-2">--</h3>
+                        <p class="text-emerald-600 text-sm font-semibold mt-2 flex items-center gap-1">
+                            ✅ Consolidado
+                        </p>
+                    </div>
+
+                    <!-- Income Card -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-bold uppercase text-slate-400 tracking-wider">Total Ingresos</p>
+                                <h3 id="kpi-income" class="text-2xl font-bold text-slate-800 mt-1">--</h3>
+                            </div>
+                            <div class="bg-emerald-50 text-emerald-600 p-2 rounded-lg text-xl">📈</div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1 mt-4 rounded-full overflow-hidden">
+                            <div class="bg-emerald-500 h-full w-3/4"></div>
+                        </div>
+                    </div>
+
+                    <!-- Expenses Card -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-bold uppercase text-slate-400 tracking-wider">Total Gastos</p>
+                                <h3 id="kpi-expense" class="text-2xl font-bold text-slate-800 mt-1">--</h3>
+                            </div>
+                            <div class="bg-rose-50 text-rose-600 p-2 rounded-lg text-xl">📉</div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1 mt-4 rounded-full overflow-hidden">
+                            <div class="bg-rose-500 h-full w-1/2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- Visualization & Content Choices: 
+                         Goal: Compare Income vs Expense over time.
+                         Method: Bar Chart (Chart.js).
+                         Interaction: Hover for exact amounts.
+                         Justification: Standard financial visualization for trends.
+                    -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span>📊</span> Flujo de Caja (Últimos 6 Meses)
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="chart-history"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Visualization & Content Choices:
+                         Goal: Organize expenses by Category.
+                         Method: Doughnut Chart (Chart.js).
+                         Interaction: Click legend to toggle categories.
+                         Justification: Helps identify where money is being spent (Flowers vs Bands vs Charity).
+                    -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span>🧩</span> Distribución de Gastos
+                        </h3>
+                        <div class="chart-container">
+                            <canvas id="chart-categories"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: MOVEMENTS (LEDGER) -->
+            <div id="view-movements" class="view-section hidden animate-fade">
+                <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Libro Diario</h2>
+                        <p class="text-slate-500 text-sm">Registro inmutable de todas las operaciones.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="search-input" placeholder="Buscar concepto..." class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <select id="filter-type" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="all">Todo</option>
+                            <option value="ingreso">Ingresos</option>
+                            <option value="egreso">Egresos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-50 text-slate-400 text-xs uppercase font-bold tracking-wider border-b border-slate-100">
+                                <tr>
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Concepto</th>
+                                    <th class="px-6 py-4">Categoría</th>
+                                    <th class="px-6 py-4 text-right">Monto</th>
+                                    <th class="px-6 py-4 text-center">Estado</th>
+                                    <th class="px-6 py-4 text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movements-table-body" class="divide-y divide-slate-50">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: APPROVALS -->
+            <div id="view-approvals" class="view-section hidden animate-fade">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <span>⚖️</span> Cámara de Validación
+                    </h2>
+                    <p class="text-slate-500 mt-2">
+                        Como <span class="font-bold text-slate-700">Aprobador/Master</span>, es su responsabilidad revisar los egresos pendientes.
+                        Los gastos rechazados no afectarán el saldo. Los aprobados se descontarán inmediatamente.
+                    </p>
+                </div>
+
+                <div id="approvals-container" class="grid gap-4">
+                    <!-- JS Populated Cards -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal for Annulment -->
+    <div id="modal-annul" class="fixed inset-0 bg-slate-900/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl transform transition-all scale-100">
+            <h3 class="text-lg font-bold text-slate-800 mb-2">Anular Movimiento</h3>
+            <p class="text-sm text-slate-500 mb-4">Esta acción es irreversible y quedará registrada en el historial.</p>
+            <textarea id="annul-reason" rows="3" class="w-full border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none mb-4" placeholder="Motivo de la anulación (ej. Error de digitación)..."></textarea>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-4 py-2 text-slate-600 font-bold hover:bg-slate-50 rounded-lg">Cancelar</button>
+                <button onclick="confirmAnnul()" class="px-4 py-2 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 shadow-lg shadow-rose-200">Confirmar Anulación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        // --- DATA & STATE ---
+        const CATEGORIES = ['Cuotas', 'Donaciones', 'Lotería', 'Eventos', 'Altar', 'Flores', 'Música', 'Admin', 'Caridad'];
+        
+        // Mock Data Generator
+        let movements = [
+            { id: 1, date: '2023-10-01', type: 'ingreso', amount: 1200, category: 'Cuotas', concept: 'Cuotas Anuales Hermanos A-F', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 2, date: '2023-10-05', type: 'egreso', amount: 150, category: 'Flores', concept: 'Flores Misa Mensual', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 3, date: '2023-10-12', type: 'ingreso', amount: 450, category: 'Lotería', concept: 'Venta Lotería Navidad', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 4, date: '2023-10-15', type: 'egreso', amount: 800, category: 'Música', concept: 'Adelanto Banda Semana Santa', status: 'pendiente', createdBy: 'Tesorero' },
+            { id: 5, date: '2023-10-20', type: 'egreso', amount: 45.50, category: 'Admin', concept: 'Material de Oficina', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 6, date: '2023-11-01', type: 'ingreso', amount: 2000, category: 'Donaciones', concept: 'Donación Anónima Manto', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 7, date: '2023-11-05', type: 'egreso', amount: 300, category: 'Caridad', concept: 'Ayuda Comedor Social', status: 'pendiente', createdBy: 'Tesorero' },
+            { id: 8, date: '2023-11-10', type: 'egreso', amount: 120, category: 'Altar', concept: 'Cera Cultos', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 9, date: '2023-11-15', type: 'ingreso', amount: 300, category: 'Eventos', concept: 'Entradas Cena Hermandad', status: 'aprobado', createdBy: 'Tesorero' },
+            { id: 10, date: '2023-11-18', type: 'egreso', amount: 2500, category: 'Altar', concept: 'Restauración Varas', status: 'pendiente', createdBy: 'Tesorero' },
+        ];
+
+        let currentView = 'dashboard';
+        let selectedIdForAnnul = null;
+        let charts = {};
+
+        // --- NAVIGATION ---
+        function router(viewId) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            // Show selected view
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            
+            // Update Nav State
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-indigo-50', 'text-indigo-700', 'font-semibold');
+                el.classList.add('text-slate-500');
+            });
+            const activeNav = document.getElementById(`nav-${viewId}`);
+            if(activeNav) {
+                activeNav.classList.add('bg-indigo-50', 'text-indigo-700', 'font-semibold');
+                activeNav.classList.remove('text-slate-500');
+            }
+
+            currentView = viewId;
+            if(viewId === 'dashboard') renderDashboard();
+            if(viewId === 'movements') renderMovements();
+            if(viewId === 'approvals') renderApprovals();
+        }
+
+        // --- RENDER FUNCTIONS ---
+
+        function renderDashboard() {
+            // Calculate Stats
+            const approvedMovements = movements.filter(m => m.status === 'aprobado');
+            const pendingMovements = movements.filter(m => m.status === 'pendiente');
+
+            const totalIncome = approvedMovements.filter(m => m.type === 'ingreso').reduce((acc, m) => acc + m.amount, 0);
+            const totalExpense = approvedMovements.filter(m => m.type === 'egreso').reduce((acc, m) => acc + m.amount, 0);
+            const balance = totalIncome - totalExpense;
+
+            // Update DOM
+            document.getElementById('kpi-balance').innerText = formatCurrency(balance);
+            document.getElementById('kpi-income').innerText = formatCurrency(totalIncome);
+            document.getElementById('kpi-expense').innerText = formatCurrency(totalExpense);
+
+            updateBadges(pendingMovements.length);
+
+            // Update Charts
+            renderCharts(approvedMovements);
+        }
+
+        function renderMovements() {
+            const tbody = document.getElementById('movements-table-body');
+            const filterType = document.getElementById('filter-type').value;
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+            tbody.innerHTML = '';
+
+            const filtered = movements.filter(m => {
+                const typeMatch = filterType === 'all' || m.type === filterType;
+                const searchMatch = m.concept.toLowerCase().includes(searchTerm);
+                return typeMatch && searchMatch;
+            }).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            filtered.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-slate-50 transition border-b border-slate-50 ${m.status === 'anulado' ? 'opacity-50 grayscale' : ''}`;
+                
+                const amountColor = m.type === 'ingreso' ? 'text-emerald-600' : 'text-rose-600';
+                const sign = m.type === 'ingreso' ? '+' : '-';
+                
+                let statusBadge = '';
+                if(m.status === 'aprobado') statusBadge = '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">Aprobado</span>';
+                else if(m.status === 'pendiente') statusBadge = '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold">Pendiente</span>';
+                else statusBadge = '<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-xs font-bold">Anulado</span>';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 text-sm text-slate-500">${m.date}</td>
+                    <td class="px-6 py-4 font-bold text-slate-700">${m.concept}</td>
+                    <td class="px-6 py-4 text-sm text-slate-600"><span class="bg-slate-100 px-2 py-0.5 rounded text-xs uppercase tracking-wide">${m.category}</span></td>
+                    <td class="px-6 py-4 text-right font-black ${amountColor}">${sign}${formatCurrency(m.amount)}</td>
+                    <td class="px-6 py-4 text-center">${statusBadge}</td>
+                    <td class="px-6 py-4 text-center">
+                        ${m.status !== 'anulado' ? `<button onclick="openAnnulModal(${m.id})" class="text-slate-400 hover:text-rose-600 transition" title="Anular">❌</button>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderApprovals() {
+            const container = document.getElementById('approvals-container');
+            container.innerHTML = '';
+
+            const pending = movements.filter(m => m.status === 'pendiente');
+            
+            if(pending.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-12 bg-white rounded-2xl border border-slate-100">
+                        <div class="text-5xl mb-4">✅</div>
+                        <h3 class="text-xl font-bold text-slate-800">Todo Validado</h3>
+                        <p class="text-slate-400">No hay egresos pendientes de revisión.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            pending.forEach(m => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-2xl border-l-4 border-l-amber-400 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4";
+                card.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Pendiente</span>
+                            <span class="text-xs text-slate-400 font-mono">${m.date}</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-slate-800">${m.concept}</h4>
+                        <div class="flex gap-4 mt-2 text-sm">
+                            <span class="text-rose-600 font-black">${formatCurrency(m.amount)}</span>
+                            <span class="text-slate-500">📂 ${m.category}</span>
+                            <span class="text-slate-500">👤 ${m.createdBy}</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="processApproval(${m.id}, 'aprobado')" class="flex-1 md:flex-none px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition shadow-sm">Aprobar</button>
+                        <button onclick="processApproval(${m.id}, 'rechazado')" class="flex-1 md:flex-none px-4 py-2 bg-white border border-rose-200 text-rose-600 rounded-lg font-bold hover:bg-rose-50 transition">Rechazar</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            updateBadges(pending.length);
+        }
+
+        // --- ACTIONS ---
+
+        function processApproval(id, status) {
+            const idx = movements.findIndex(m => m.id === id);
+            if(idx !== -1) {
+                if(status === 'rechazado') {
+                    // In a real app we might delete or mark as rejected. Here, let's annul with reason
+                    movements[idx].status = 'anulado';
+                    movements[idx].annulmentReason = 'Rechazado por Validación';
+                } else {
+                    movements[idx].status = 'aprobado';
+                }
+                renderApprovals();
+                // If we were on dashboard, this would update charts
+            }
+        }
+
+        function openAnnulModal(id) {
+            selectedIdForAnnul = id;
+            document.getElementById('modal-annul').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-annul').classList.add('hidden');
+            selectedIdForAnnul = null;
+            document.getElementById('annul-reason').value = '';
+        }
+
+        function confirmAnnul() {
+            const reason = document.getElementById('annul-reason').value;
+            if(!reason) return alert("Debe indicar un motivo.");
+
+            const idx = movements.findIndex(m => m.id === selectedIdForAnnul);
+            if(idx !== -1) {
+                movements[idx].status = 'anulado';
+                movements[idx].annulmentReason = reason;
+                renderMovements(); // Re-render table
+            }
+            closeModal();
+        }
+
+        function updateBadges(count) {
+            const badge = document.getElementById('badge-pending');
+            const badgeMobile = document.getElementById('badge-pending-mobile');
+            if(count > 0) {
+                badge.innerText = count;
+                badge.classList.remove('hidden');
+                badgeMobile.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+                badgeMobile.classList.add('hidden');
+            }
+        }
+
+        // --- CHARTING ---
+
+        function renderCharts(data) {
+            // Destroy existing if any
+            if(charts.history) charts.history.destroy();
+            if(charts.categories) charts.categories.destroy();
+
+            // 1. Bar Chart: Income vs Expense (Mock grouping)
+            const ctxHistory = document.getElementById('chart-history').getContext('2d');
+            charts.history = new Chart(ctxHistory, {
+                type: 'bar',
+                data: {
+                    labels: ['Oct', 'Nov', 'Dec'], // Simplified for mock
+                    datasets: [
+                        {
+                            label: 'Ingresos',
+                            data: [1200, 2300, 0], // Mock Aggregations based on data
+                            backgroundColor: '#10b981',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Egresos',
+                            data: [995.5, 120, 0],
+                            backgroundColor: '#f43f5e',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+                }
+            });
+
+            // 2. Doughnut: Expense Categories
+            const expenses = data.filter(m => m.type === 'egreso');
+            const categoryMap = {};
+            expenses.forEach(m => {
+                categoryMap[m.category] = (categoryMap[m.category] || 0) + m.amount;
+            });
+
+            const ctxCat = document.getElementById('chart-categories').getContext('2d');
+            charts.categories = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryMap),
+                    datasets: [{
+                        data: Object.values(categoryMap),
+                        backgroundColor: ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // --- UTILS & INIT ---
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
+        }
+
+        // Event Listeners for Filters
+        document.getElementById('search-input').addEventListener('input', renderMovements);
+        document.getElementById('filter-type').addEventListener('change', renderMovements);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            router('dashboard');
+        });
+
+    </script>
+</body>
+</html>
